@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   Color,
-  InitialPositionSFEN,
+  ImmutablePosition,
   PieceType,
-  Position,
   Square,
 } from "tsshogi";
 
@@ -32,37 +30,13 @@ function getPieceKanji(type: PieceType, color: Color): string {
 
 const SQUARE_SIZE = 38;
 
-export function Board() {
-  const [position, setPosition] = useState(
-    () => Position.newBySFEN(InitialPositionSFEN.STANDARD)!,
-  );
-  const [selected, setSelected] = useState<Square | null>(null);
+type BoardProps = {
+  position: ImmutablePosition;
+  selectedSquare?: Square | null;
+  onSquareTap?: (square: Square) => void;
+};
 
-  const onSquareTap = (square: Square) => {
-    const piece = position.board.at(square);
-
-    if (selected === null) {
-      if (piece) setSelected(square);
-      return;
-    }
-
-    if (selected.equals(square)) {
-      setSelected(null);
-      return;
-    }
-
-    const selectedPiece = position.board.at(selected);
-    if (piece && selectedPiece && piece.color === selectedPiece.color) {
-      setSelected(square);
-      return;
-    }
-
-    const next = position.clone();
-    next.edit({ move: { from: selected, to: square } });
-    setPosition(next);
-    setSelected(null);
-  };
-
+export function Board({ position, selectedSquare, onSquareTap }: BoardProps) {
   return (
     <View style={styles.board}>
       {Array.from({ length: 9 }, (_, y) => (
@@ -70,12 +44,12 @@ export function Board() {
           {Array.from({ length: 9 }, (_, x) => {
             const square = Square.newByXY(x, y);
             const piece = position.board.at(square);
-            const isSelected = selected?.equals(square) ?? false;
+            const isSelected = selectedSquare?.equals(square) ?? false;
             return (
               <Pressable
                 key={x}
                 style={[styles.square, isSelected && styles.squareSelected]}
-                onPress={() => onSquareTap(square)}
+                onPress={() => onSquareTap?.(square)}
               >
                 {piece && (
                   <Text

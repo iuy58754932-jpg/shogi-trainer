@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   Color,
   importKIF,
   InitialPositionSFEN,
+  Move,
   Position,
   Record as ShogiRecord,
   RecordMetadataKey,
@@ -19,6 +21,7 @@ import { Board } from "@/components/shogi/Board";
 import { Hand } from "@/components/shogi/Hand";
 import { KIFInput } from "@/components/shogi/KIFInput";
 import { PlaybackControls } from "@/components/shogi/PlaybackControls";
+import { findLegalMoveAt, getLegalDestinations } from "@/lib/shogi/moves";
 
 export default function Index() {
   const [record, setRecord] = useState<ShogiRecord | null>(null);
@@ -37,16 +40,26 @@ export default function Index() {
   }, [record, currentPly]);
   const position = inReplayMode && replayPosition ? replayPosition : freePosition;
 
+  const legalMoves = useMemo(() => {
+    if (inReplayMode || !selected) return [];
+    return getLegalDestinations(freePosition, selected);
+  }, [inReplayMode, freePosition, selected]);
+  const legalDestinations = useMemo(
+    () => legalMoves.map((lm) => lm.to),
+    [legalMoves],
+  );
+
   const onSquareTap = (square: Square) => {
     if (inReplayMode) {
       setSelected((prev) => (prev?.equals(square) ? null : square));
       return;
     }
 
-    const piece = position.board.at(square);
+    const piece = freePosition.board.at(square);
+    const turn = freePosition.color;
 
     if (selected === null) {
-      if (piece) setSelected(square);
+      if (piece && piece.color === turn) setSelected(square);
       return;
     }
 
@@ -55,16 +68,36 @@ export default function Index() {
       return;
     }
 
-    const selectedPiece = position.board.at(selected);
-    if (piece && selectedPiece && piece.color === selectedPiece.color) {
+    if (piece && piece.color === turn) {
       setSelected(square);
       return;
     }
 
-    const next = freePosition.clone();
-    next.edit({ move: { from: selected, to: square } });
-    setFreePosition(next);
+    const lm = findLegalMoveAt(legalMoves, square);
     setSelected(null);
+    if (!lm) return;
+
+    if (lm.base && lm.promoted) {
+      Alert.alert("成りますか?", undefined, [
+        {
+          text: "成る",
+          onPress: () => executeMove(lm.promoted!),
+        },
+        {
+          text: "成らず",
+          onPress: () => executeMove(lm.base!),
+        },
+        { text: "キャンセル", style: "cancel" },
+      ]);
+    } else {
+      executeMove(lm.promoted ?? lm.base!);
+    }
+  };
+
+  const executeMove = (move: Move) => {
+    const next = freePosition.clone();
+    next.doMove(move);
+    setFreePosition(next);
   };
 
   const loadKIF = () => {
@@ -123,6 +156,7 @@ export default function Index() {
       <Board
         position={position}
         selectedSquare={selected}
+        legalDestinations={legalDestinations}
         onSquareTap={onSquareTap}
       />
       <Hand hand={position.blackHand} color={Color.BLACK} />

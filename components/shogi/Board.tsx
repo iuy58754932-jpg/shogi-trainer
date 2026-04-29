@@ -33,10 +33,16 @@ const SQUARE_SIZE = 38;
 type BoardProps = {
   position: ImmutablePosition;
   selectedSquare?: Square | null;
+  legalDestinations?: Square[];
   onSquareTap?: (square: Square) => void;
 };
 
-export function Board({ position, selectedSquare, onSquareTap }: BoardProps) {
+export function Board({
+  position,
+  selectedSquare,
+  legalDestinations,
+  onSquareTap,
+}: BoardProps) {
   return (
     <View style={styles.board}>
       {Array.from({ length: 9 }, (_, y) => (
@@ -45,6 +51,8 @@ export function Board({ position, selectedSquare, onSquareTap }: BoardProps) {
             const square = Square.newByXY(x, y);
             const piece = position.board.at(square);
             const isSelected = selectedSquare?.equals(square) ?? false;
+            const isLegalDest =
+              legalDestinations?.some((d) => d.equals(square)) ?? false;
             return (
               <Pressable
                 key={x}
@@ -60,6 +68,12 @@ export function Board({ position, selectedSquare, onSquareTap }: BoardProps) {
                   >
                     {getPieceKanji(piece.type, piece.color)}
                   </Text>
+                )}
+                {isLegalDest && (
+                  <View
+                    style={piece ? styles.legalCapture : styles.legalDot}
+                    pointerEvents="none"
+                  />
                 )}
               </Pressable>
             );
@@ -98,5 +112,22 @@ const styles = StyleSheet.create({
   },
   pieceGote: {
     transform: [{ rotate: "180deg" }],
+  },
+  legalDot: {
+    position: "absolute",
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "rgba(46, 204, 113, 0.55)",
+  },
+  legalCapture: {
+    position: "absolute",
+    top: 2,
+    left: 2,
+    right: 2,
+    bottom: 2,
+    borderWidth: 2.5,
+    borderColor: "rgba(231, 76, 60, 0.75)",
+    borderRadius: 4,
   },
 });
